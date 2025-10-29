@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { FileInput, X, ArrowLeft, BrushCleaning } from "lucide-react";
+import { FileInput, X, ArrowLeft, BrushCleaning, Download, PackageCheck } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import cromaLogo from "@/components/media/croma.svg";
 import {
@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Accordion,
@@ -29,6 +30,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import Papa from "papaparse";
+import { DialogTrigger } from "@radix-ui/react-dialog";
 
 // funções base
 const createBaseRowSimple = () => ({ name: "", size: "" });
@@ -54,12 +56,10 @@ export function FormStep2() {
   const [rows, setRows] = useState<any[]>(state?.savedRows ?? []);
   const [filledCount, setFilledCount] = useState(0);
 
-
   const [sendEmail, setSendEmail] = useState(false);
   const [email, setEmail] = useState("");
   const [showSummary, setShowSummary] = useState(false);
   const [csvData, setCsvData] = useState<string | null>(null);
-
 
   useEffect(() => {
     if (rows.length === 0) {
@@ -198,7 +198,22 @@ export function FormStep2() {
                 <SelectContent className="bg-neutral-800 text-white border-neutral-700">
                   <SelectGroup>
                     {[
-                      "5G","4G","3G","GG","G","M","P","PP","16","14","12","10","8","6","4","2"
+                      "5G",
+                      "4G",
+                      "3G",
+                      "GG",
+                      "G",
+                      "M",
+                      "P",
+                      "PP",
+                      "16",
+                      "14",
+                      "12",
+                      "10",
+                      "8",
+                      "6",
+                      "4",
+                      "2",
                     ].map((size) => (
                       <SelectItem key={size} value={size}>
                         {size}
@@ -265,11 +280,10 @@ export function FormStep2() {
       {/* DIALOG */}
       <Dialog open={showSummary} onOpenChange={setShowSummary}>
         <DialogContent className="dark max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-semibold text-yellow-400">
-              Resumo do Pedido
-            </DialogTitle>
-          </DialogHeader>
+          <PackageCheck className="bg-amber-500" />
+          <DialogTitle className="text-lg font-semibold text-yellow-400">
+            Resumo do Pedido
+          </DialogTitle>
 
           <div className="space-y-2 text-sm text-gray-300">
             <p>
@@ -298,37 +312,57 @@ export function FormStep2() {
                   .filter((r) => Object.values(r).some((v) => v))
                   .map((r, i) => (
                     <div key={i} className="border-b border-neutral-700 pb-1">
-                      {r.name && <p><strong>Nome:</strong> {r.name}</p>}
-                      {"number" in r && r.number && <p><strong>Número:</strong> {r.number}</p>}
-                      {r.size && <p><strong>Tamanho:</strong> {r.size}</p>}
-                      {"position" in r && r.position && <p><strong>Posição:</strong> {r.position}</p>}
+                      {r.name && (
+                        <p>
+                          <strong>Nome:</strong> {r.name}
+                        </p>
+                      )}
+                      {"number" in r && r.number && (
+                        <p>
+                          <strong>Número:</strong> {r.number}
+                        </p>
+                      )}
+                      {r.size && (
+                        <p>
+                          <strong>Tamanho:</strong> {r.size}
+                        </p>
+                      )}
+                      {"position" in r && r.position && (
+                        <p>
+                          <strong>Posição:</strong> {r.position}
+                        </p>
+                      )}
                     </div>
                   ))}
               </AccordionContent>
             </AccordionItem>
           </Accordion>
 
-          <DialogFooter className="pt-4 flex justify-between">
-            <Button
-              onClick={() => {
-                const blob = new Blob([csvData || ""], { type: "text/csv;charset=utf-8;" });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                link.href = url;
-                link.download = `pedido_${orderId}.csv`;
-                link.click();
-              }}
-            >
-              Baixar CSV
-            </Button>
+          <DialogFooter>
+            <div className="relative w-full flex items-center h-16">
+              <div className="absolute rounded-full">
+                <Button
+                  onClick={() => {
+                    const blob = new Blob([csvData || ""], { type: "text/csv;charset=utf-8;" });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = `pedido_${orderId}.csv`;
+                    link.click();
+                  }}
+                  variant="outline"
+                >
+                  <Download color="white" />
+                </Button>
+              </div>
 
-            <Button
-              onClick={handleCloseDialog}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              <FileInput/>
-              Enviar
-            </Button>
+              <div className="absolute left-1/2 -translate-x-1/2">
+                <Button onClick={handleCloseDialog}>
+                  Enviar
+                  <FileInput />
+                </Button>
+              </div>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
