@@ -3,7 +3,17 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { FileInput, X, ArrowLeft, BrushCleaning, Download, PackageCheck } from "lucide-react";
+import {
+  FileInput,
+  X,
+  ArrowLeft,
+  BrushCleaning,
+  PackageCheck,
+  AlertTriangle,
+  Loader2,
+  FileDown,
+  CheckCircle2,
+} from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import cromaLogo from "@/components/media/croma.svg";
 import {
@@ -15,26 +25,25 @@ import {
   SelectGroup,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Papa from "papaparse";
-import { DialogTrigger } from "@radix-ui/react-dialog";
+import jsPDF from "jspdf";
 
 // funções base
 const createBaseRowSimple = () => ({ name: "", size: "" });
-const createBaseRowNumbered = () => ({ name: "", number: "", size: "", position: "" });
+const createBaseRowNumbered = () => ({
+  name: "",
+  number: "",
+  size: "",
+  position: "",
+});
 
 export function FormStep2() {
   const navigate = useNavigate();
@@ -42,25 +51,29 @@ export function FormStep2() {
     state: {
       hasNumbering?: boolean;
       customerName?: string;
-      orderId?: string;
-      layoutId?: string;
+      customerEmail?: string;
+      numOrder?: string;
+      numLayout?: string;
       savedRows?: any[];
     };
   };
 
   const hasNumbering = state?.hasNumbering ?? false;
   const customerName = state?.customerName ?? "Sem nome";
-  const orderId = state?.orderId ?? "0001";
-  const layoutId = state?.layoutId ?? "L001";
+  const customerEmail = state?.customerEmail ?? "Sem e-mail";
+  const orderId = state?.numOrder ?? "0001";
+  const layoutId = state?.numLayout ?? "L001";
 
   const [rows, setRows] = useState<any[]>(state?.savedRows ?? []);
   const [filledCount, setFilledCount] = useState(0);
-
   const [sendEmail, setSendEmail] = useState(false);
-  const [email, setEmail] = useState("");
   const [showSummary, setShowSummary] = useState(false);
-  const [csvData, setCsvData] = useState<string | null>(null);
+  const [_, setCsvData] = useState<string | null>(null);
+  const [accepted, setAccepted] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [completed, setCompleted] = useState(false);
 
+  // gera linhas base
   useEffect(() => {
     if (rows.length === 0) {
       const baseCreator = hasNumbering ? createBaseRowNumbered : createBaseRowSimple;
@@ -68,8 +81,11 @@ export function FormStep2() {
     }
   }, [hasNumbering]);
 
+  // conta apenas linhas preenchidas
   useEffect(() => {
-    const filled = rows.filter((r) => Object.values(r).some((v) => v !== "")).length;
+    const filled = rows.filter((r) =>
+      Object.values(r).some((v) => v !== "" && v !== null && v !== undefined)
+    ).length;
     setFilledCount(filled);
   }, [rows]);
 
@@ -95,14 +111,93 @@ export function FormStep2() {
     navigate("/", { state: { ...state, savedRows: rows } });
   };
 
-  // geração de CSV e abertura do diálogo
+  // Geração de CSV
   const handleConclude = () => {
-    const csv = Papa.unparse(rows);
+    const filled = rows.filter((r) =>
+      Object.values(r).some((v) => v !== "" && v !== null && v !== undefined)
+    );
+
+    if (filled.length < 5) {
+      alert("É necessário preencher pelo menos 5 nomes antes de finalizar o formulário.");
+      return;
+    }
+
+    const headerLines = [
+      ["Planilha de Personalização"],
+      [""],
+      [`Cliente: ${customerName}`],
+      [`E-mail: ${customerEmail}`],
+      [`Nº do Pedido: ${orderId}`],
+      [`Nº do Layout: ${layoutId}`],
+      [""],
+    ];
+
+    const dataLines = [
+      hasNumbering ? ["Nome", "Número", "Tamanho", "Posição"] : ["Nome", "Tamanho"],
+      ...filled.map((r) =>
+        hasNumbering ? [r.name, r.number, r.size, r.position] : [r.name, r.size]
+      ),
+    ];
+
+    const finalData = [...headerLines, ...dataLines];
+    const csv = Papa.unparse(finalData, { delimiter: ";" });
+
     setCsvData(csv);
     setShowSummary(true);
+    setAccepted(false);
   };
 
-  const handleCloseDialog = () => setShowSummary(false);
+  const handleFinalize = () => {
+    if (!accepted) {
+      alert("Você precisa aceitar a declaração antes de prosseguir.");
+      return;
+    }
+    setIsFinalizing(true);
+    setTimeout(() => {
+      setIsFinalizing(false);
+      setCompleted(true);
+    }, 3500);
+  };
+
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF();
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text("Resumo do Pedido - Croma", 20, 20);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.text(`Cliente: ${customerName}`, 20, 35);
+    doc.text(`E-mail: ${customerEmail}`, 20, 42);
+    doc.text(`Pedido: ${orderId}`, 20, 49);
+    doc.text(`Layout: ${layoutId}`, 20, 56);
+    doc.text(" ", 20, 60);
+    doc.setFont("helvetica", "bold");
+    doc.text("Lista de nomes:", 20, 68);
+
+    let y = 75;
+    rows.forEach((r, i) => {
+      const line = Object.values(r)
+        .filter((v) => v)
+        .join("  |  ");
+      doc.text(`${i + 1}. ${line}`, 20, y);
+      y += 7;
+      if (y > 270) {
+        doc.addPage();
+        y = 20;
+      }
+    });
+
+    doc.save(`pedido_${orderId}.pdf`);
+  };
+
+  const handleFinish = () => {
+    setShowSummary(false);
+    navigate("/");
+  };
+
+  const filledRows = rows.filter((r) =>
+    Object.values(r).some((v) => v !== "" && v !== null && v !== undefined)
+  );
 
   return (
     <div className="dark bg-background min-h-screen text-white flex flex-col items-center py-10 px-3 relative">
@@ -243,7 +338,7 @@ export function FormStep2() {
           ))}
         </CardContent>
 
-        {/* PARTE 3 */}
+        {/* ENVIO */}
         <CardContent className="border-t border-neutral-800 mt-6 pt-6 space-y-4">
           <div className="flex items-center gap-2">
             <Checkbox
@@ -252,26 +347,16 @@ export function FormStep2() {
               onCheckedChange={(checked) => setSendEmail(!!checked)}
             />
             <label htmlFor="sendEmail" className="cursor-pointer select-none text-sm">
-              Enviar o formulário para e-mail
+              Receber uma cópia do formulário por e-mail
             </label>
           </div>
-
-          {sendEmail && (
-            <Input
-              type="email"
-              placeholder="Digite seu e-mail"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="bg-neutral-700 text-white"
-            />
-          )}
 
           <div className="flex justify-end pt-4">
             <Button
               onClick={handleConclude}
               className="bg-yellow-500 hover:bg-yellow-600 text-black font-semibold"
             >
-              Concluir
+              Finalizar
             </Button>
           </div>
         </CardContent>
@@ -280,90 +365,145 @@ export function FormStep2() {
       {/* DIALOG */}
       <Dialog open={showSummary} onOpenChange={setShowSummary}>
         <DialogContent className="dark max-w-lg">
-          <PackageCheck className="bg-amber-500" />
-          <DialogTitle className="text-lg font-semibold text-yellow-400">
-            Resumo do Pedido
-          </DialogTitle>
+          {!isFinalizing && !completed ? (
+            <>
+              <DialogTitle className="text-lg font-semibold text-yellow-400">
+                <PackageCheck className="w-full" color="#ffffff" size={120} />
+                Resumo do Pedido
+              </DialogTitle>
 
-          <div className="space-y-2 text-sm text-gray-300">
-            <p>
-              <strong>Cliente:</strong> {customerName}
-            </p>
-            <p>
-              <strong>Número do Pedido:</strong> {orderId}
-            </p>
-            <p>
-              <strong>Número do Layout:</strong> {layoutId}
-            </p>
-            {sendEmail && (
-              <p>
-                <strong>E-mail:</strong> {email}
-              </p>
-            )}
-          </div>
-
-          <Accordion type="single" collapsible className="mt-4 border-t border-neutral-800 pt-4">
-            <AccordionItem value="names">
-              <AccordionTrigger className="text-yellow-400">
-                Ver lista de nomes ({rows.length})
-              </AccordionTrigger>
-              <AccordionContent className="max-h-60 overflow-y-auto text-sm text-gray-300 space-y-1">
-                {rows
-                  .filter((r) => Object.values(r).some((v) => v))
-                  .map((r, i) => (
-                    <div key={i} className="border-b border-neutral-700 pb-1">
-                      {r.name && (
-                        <p>
-                          <strong>Nome:</strong> {r.name}
-                        </p>
-                      )}
-                      {"number" in r && r.number && (
-                        <p>
-                          <strong>Número:</strong> {r.number}
-                        </p>
-                      )}
-                      {r.size && (
-                        <p>
-                          <strong>Tamanho:</strong> {r.size}
-                        </p>
-                      )}
-                      {"position" in r && r.position && (
-                        <p>
-                          <strong>Posição:</strong> {r.position}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-
-          <DialogFooter>
-            <div className="relative w-full flex items-center h-16">
-              <div className="absolute rounded-full">
-                <Button
-                  onClick={() => {
-                    const blob = new Blob([csvData || ""], { type: "text/csv;charset=utf-8;" });
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement("a");
-                    link.href = url;
-                    link.download = `pedido_${orderId}.csv`;
-                    link.click();
-                  }}
-                  variant="outline"
-                >
-                  <Download color="white" />
-                </Button>
+              <div className="space-y-2 text-sm text-gray-300">
+                <p>
+                  <strong>Cliente:</strong> {customerName}
+                </p>
+                <p>
+                  <strong>Número do Pedido:</strong> {orderId}
+                </p>
+                <p>
+                  <strong>Número do Layout:</strong> {layoutId}
+                </p>
+                <p>
+                  <strong>E-mail:</strong> {customerEmail}
+                </p>
               </div>
 
-              <div className="absolute left-1/2 -translate-x-1/2">
-                <Button onClick={handleCloseDialog}>
-                  Enviar
-                  <FileInput />
+              <Accordion
+                type="single"
+                collapsible
+                className="mt-4 border-t border-neutral-800 pt-4"
+              >
+                <AccordionItem value="names">
+                  <AccordionTrigger className="text-yellow-400">
+                    Ver lista de nomes ({filledRows.length})
+                  </AccordionTrigger>
+                  <AccordionContent className="max-h-60 overflow-y-auto text-sm text-gray-300 space-y-1">
+                    {filledRows.map((r, i) => (
+                      <div key={i} className="border-b border-neutral-700 pb-1">
+                        {r.name && (
+                          <p>
+                            <strong>Nome:</strong> {r.name}
+                          </p>
+                        )}
+                        {"number" in r && r.number && (
+                          <p>
+                            <strong>Número:</strong> {r.number}
+                          </p>
+                        )}
+                        {r.size && (
+                          <p>
+                            <strong>Tamanho:</strong> {r.size}
+                          </p>
+                        )}
+                        {"position" in r && r.position && (
+                          <p>
+                            <strong>Posição:</strong> {r.position}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+
+              {/* ALERTA DE ACEITE */}
+              <Alert
+                variant="destructive"
+                className="mt-6 w-full flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-[#561719] border-[#ed1b24] text-white rounded-lg p-4"
+              >
+                <AlertTriangle className="text-[#ed1b24] w-6 h-6" />
+                <div className="flex-1">
+                  <AlertTitle className="text-white font-semibold">
+                    Declaração de conferência e autorização
+                  </AlertTitle>
+                  <AlertDescription className="text-sm text-zinc-300 mt-1 leading-relaxed">
+                    Confirmo que revisei cuidadosamente todos os nomes, tamanhos e informações
+                    contidas neste formulário. Autorizo o início da produção com base nesses dados e
+                    reconheço que eventuais erros ou omissões após este envio são de minha inteira
+                    responsabilidade.
+                  </AlertDescription>
+
+                  <div className="flex items-center gap-2 mt-3">
+                    <Checkbox
+                      id="accept"
+                      checked={accepted}
+                      onCheckedChange={(checked) => setAccepted(!!checked)}
+                    />
+                    <label htmlFor="accept" className="text-sm cursor-pointer text-zinc-200">
+                      Declaro estar ciente e de acordo.
+                    </label>
+                  </div>
+                </div>
+              </Alert>
+
+              <DialogFooter>
+                <div className="relative w-full flex items-center h-16 justify-center">
+                  <Button
+                    onClick={handleFinalize}
+                    disabled={!accepted}
+                    className={`${
+                      accepted
+                        ? "bg-yellow-500 hover:bg-yellow-600 text-black"
+                        : "bg-neutral-700 text-gray-400 cursor-not-allowed"
+                    }`}
+                  >
+                    Enviar
+                    <FileInput className="ml-1" />
+                  </Button>
+                </div>
+              </DialogFooter>
+            </>
+          ) : isFinalizing ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center text-zinc-300 animate-pulse">
+              <Loader2 className="animate-spin h-8 w-8 text-yellow-400 mb-3" />
+              <p>Gerando arquivos CSV e PDF...</p>
+              <p>Enviando para a equipe da Croma...</p>
+            </div>
+          ) : completed ? (
+            <div className="flex flex-col items-center justify-center text-center py-8">
+              <CheckCircle2 className="text-green-400 w-10 h-10 mb-3" />
+              <p className="text-zinc-300 mb-4">
+                Tudo foi processado com sucesso! Agora você pode baixar o PDF ou encerrar o
+                processo.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 mt-2">
+                <Button
+                  onClick={handleDownloadPDF}
+                  className="bg-yellow-500 hover:bg-yellow-600 text-black font-semibold flex items-center gap-2"
+                >
+                  <FileDown size={18} />
+                  Baixar PDF
+                </Button>
+
+                <Button
+                  onClick={handleFinish}
+                  variant="outline"
+                  className="text-white border-neutral-700 hover:bg-neutral-800"
+                >
+                  Terminei tudo por aqui
                 </Button>
               </div>
             </div>
-          </DialogFooter>
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

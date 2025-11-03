@@ -19,8 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { Checkbox } from "../components/ui/checkbox";
 import { useNavigate } from "react-router-dom";
-import  cromaLogo from "@/components/media/croma.svg";
-
+import cromaLogo from "@/components/media/croma.svg";
 
 library.add(fas, far, fab);
 
@@ -33,13 +32,14 @@ export function App() {
       numOrder: "",
       numLayout: "",
       customerName: "",
+      customerEmail: "",
       hasNumbering: false,
     },
   });
 
   const onSubmit = (data: any) => {
     console.log("Dados do mini cadastro:", data);
-    // Redireciona para a próxima etapa e envia os dados
+    // Redireciona para a próxima etapa e envia os dados via state
     navigate("/step2", { state: data });
   };
 
@@ -48,28 +48,33 @@ export function App() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="w-full flex justify-center">
         <Card className="w-full max-w-md shadow-lg border-border bg-card p-6">
           <div className="flex flex-col items-center">
-            <img src={cromaLogo} alt="croma Logo" className="w-32"/>
+            <img src={cromaLogo} alt="croma Logo" className="w-32" />
           </div>
+
           <CardHeader>
             <CardTitle>
               <FontAwesomeIcon className="pr-1" icon={"file-lines"} style={{ color: "#ffcc00" }} />
               Mini Cadastro
             </CardTitle>
-            <CardDescription>
-              Preencha as informações básicas do pedido
-            </CardDescription>
+            <CardDescription>Preencha as informações básicas do pedido</CardDescription>
           </CardHeader>
+
           <CardContent className="space-y-3">
             {/* Número do pedido */}
-              <Label htmlFor="numOrder">
-                <FontAwesomeIcon className="pr-1 pl-1" icon={"hashtag"} style={{ color: "#ffcc00" }} />
-                Número do pedido
-              </Label>
+            <Label htmlFor="numOrder">
+              <FontAwesomeIcon
+                className="pr-1 pl-1"
+                icon={"hashtag"}
+                style={{ color: "#ffcc00" }}
+              />
+              Número do pedido
+            </Label>
             <div className="flex flex-col items-center">
-              <Input  className="mt-1"
+              <Input
+                className="mt-1"
                 type="number"
                 id="numOrder"
-                placeholder="Ex.: 1092-09"
+                placeholder="Ex.: 1092"
                 {...form.register("numOrder", {
                   valueAsNumber: true,
                   required: "Precisamos do número do pedido",
@@ -77,8 +82,8 @@ export function App() {
               />
               {form.formState.errors.numOrder && (
                 <Alert variant="destructive" className="m-2">
-                  <AlertCircle className="" />
-                  <AlertTitle>Campo vazio</AlertTitle>
+                  <AlertCircle />
+                  <AlertTitle>Campo obrigatório</AlertTitle>
                   <AlertDescription>
                     {String(form.formState.errors.numOrder?.message)}
                   </AlertDescription>
@@ -87,16 +92,20 @@ export function App() {
             </div>
 
             {/* Número do layout */}
-              <Label htmlFor="numLayout" className="">
-                <FontAwesomeIcon className="pr-1 pl-1" icon={"paintbrush"} style={{ color: "#ffcc00" }} />
-                Número do layout
-              </Label>
+            <Label htmlFor="numLayout" className="">
+              <FontAwesomeIcon
+                className="pr-1 pl-1"
+                icon={"paintbrush"}
+                style={{ color: "#ffcc00" }}
+              />
+              Número do layout
+            </Label>
             <div className="flex flex-col items-center">
               <Input
-              className="mt-1"
+                className="mt-1"
                 type="number"
                 id="numLayout"
-                placeholder="Ex.: 09909.987"
+                placeholder="Ex.: 2045"
                 {...form.register("numLayout", {
                   valueAsNumber: true,
                   required: "Precisamos do número do layout",
@@ -104,8 +113,8 @@ export function App() {
               />
               {form.formState.errors.numLayout && (
                 <Alert variant="destructive" className="m-2">
-                  <AlertCircle className="" />
-                  <AlertTitle>Campo vazio</AlertTitle>
+                  <AlertCircle />
+                  <AlertTitle>Campo obrigatório</AlertTitle>
                   <AlertDescription>
                     {String(form.formState.errors.numLayout?.message)}
                   </AlertDescription>
@@ -114,13 +123,13 @@ export function App() {
             </div>
 
             {/* Nome do cliente */}
-              <Label htmlFor="customerName" className="p-2">
-                <FontAwesomeIcon className="pr-1 pl-1" icon={"user"} style={{ color: "#ffcc00" }}/>
-                Cliente responsável
-              </Label>
+            <Label htmlFor="customerName" className="p-2">
+              <FontAwesomeIcon className="pr-1 pl-1" icon={"user"} style={{ color: "#ffcc00" }} />
+              Cliente responsável
+            </Label>
             <div className="flex flex-col items-center">
               <Input
-              className="mt-1 "
+                className="mt-1"
                 type="text"
                 id="customerName"
                 placeholder="Ex.: Antônio Miranda"
@@ -133,8 +142,8 @@ export function App() {
                 })}
               />
               {form.formState.errors.customerName && (
-                <Alert variant="destructive" className="m-2 ">
-                  <AlertCircle className="" />
+                <Alert variant="destructive" className="m-2">
+                  <AlertCircle />
                   <AlertTitle>Campo obrigatório</AlertTitle>
                   <AlertDescription>
                     {String(form.formState.errors.customerName?.message)}
@@ -143,32 +152,69 @@ export function App() {
               )}
             </div>
 
+            {/* E-mail do cliente */}
+            <Label htmlFor="customerEmail" className="p-2">
+              <FontAwesomeIcon
+                className="pr-1 pl-1"
+                icon={"envelope"}
+                style={{ color: "#ffcc00" }}
+              />
+              E-mail do cliente
+            </Label>
+            <div className="flex flex-col items-center">
+              <Input
+                className="mt-1"
+                type="email"
+                id="customerEmail"
+                placeholder="Ex.: antonio@croma.com.br"
+                {...form.register("customerEmail", {
+                  required: "Precisamos do e-mail do cliente",
+                  pattern: {
+                    value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                    message: "Digite um e-mail válido",
+                  },
+                })}
+              />
+              {form.formState.errors.customerEmail && (
+                <Alert variant="destructive" className="m-2">
+                  <AlertCircle />
+                  <AlertTitle>Campo obrigatório</AlertTitle>
+                  <AlertDescription>
+                    {String(form.formState.errors.customerEmail?.message)}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+
             {/* Checkbox numeração */}
-            <div className="">
+            <div className="pt-2">
               <Controller
                 name="hasNumbering"
                 control={form.control}
                 defaultValue={false}
                 render={({ field }) => (
-                  <div className="">
+                  <div className="flex items-center">
                     <Checkbox
-                    className="mr-2 ml-2"
+                      className="mr-2 ml-2"
                       id="hasNumbering"
                       checked={!!field.value}
                       onCheckedChange={(checked) => field.onChange(checked === true)}
-                      />
+                    />
                     <Label htmlFor="hasNumbering" className="cursor-pointer">
                       Numeração
                     </Label>
-                  </div>                 
+                  </div>
                 )}
               />
             </div>
           </CardContent>
 
-          <CardFooter className="flex flex-col items-center ">
-            <Button type="submit" className="w-full bg-white hover:bg-primary">
-              Próximo
+          <CardFooter className="flex flex-col items-center">
+            <Button
+              type="submit"
+              className="w-full bg-white hover:bg-primary text-black font-semibold"
+            >
+              Iniciar
             </Button>
           </CardFooter>
         </Card>
